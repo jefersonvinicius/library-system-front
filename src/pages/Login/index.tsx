@@ -1,8 +1,10 @@
-import { FormEvent } from 'react';
+import { FormEvent, useRef } from 'react';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
-import { AuthService } from 'services/auth';
-import { useErrorMessage } from 'hooks/errors';
+import { AuthService, LogInData } from 'services/auth';
+import { useErrorMessage } from 'shared/errors';
+import { useUser } from 'state/user';
+import { useNavigate } from 'react-router-dom';
 
 type Props = {
   authService: AuthService;
@@ -10,18 +12,31 @@ type Props = {
 
 export default function LoginPage({ authService }: Props) {
   const logInError = useErrorMessage();
+  const [, setUser] = useUser();
+
+  const navigate = useNavigate();
+
+  const logInForm = useRef<HTMLFormElement>(null);
 
   function handleLogin(event: FormEvent) {
     event.preventDefault();
+
     logInError.reset();
-    authService.logIn({ email: 'any@gmail.com', password: 'any' }).catch(logInError.set);
+    const data = Object.fromEntries(new FormData(logInForm.current!).entries());
+    authService
+      .logIn(data as LogInData)
+      .then((user) => {
+        setUser(user);
+        navigate('/home', { replace: true });
+      })
+      .catch(logInError.set);
   }
 
   return (
     <div className="p-d-flex p-flex-column">
-      <form onSubmit={handleLogin}>
-        <InputText type="email" placeholder="Email" />
-        <InputText type="password" placeholder="Password" />
+      <form ref={logInForm} onSubmit={handleLogin}>
+        <InputText type="email" name="email" placeholder="Email" />
+        <InputText type="password" name="password" placeholder="Password" />
         <Button label="Log In" />
         {logInError.message}
       </form>
