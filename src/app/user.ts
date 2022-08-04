@@ -20,4 +20,16 @@ export class User {
       data.access_token
     );
   }
+
+  static fromPlainObject(data: any) {
+    return new User(
+      data.id,
+      data.name,
+      data.email,
+      new Date(data.createdAt),
+      new Date(data.updatedAt),
+      data.role,
+      data.accessToken
+    );
+  }
 }
