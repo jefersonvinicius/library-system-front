@@ -1,5 +1,5 @@
 import { User } from 'app/user';
-import { atom, useRecoilState, AtomEffect } from 'recoil';
+import { atom, useRecoilState, AtomEffect, useRecoilValue, selector } from 'recoil';
 
 const localStorageSync: AtomEffect<User | null> = ({ onSet, setSelf }) => {
   const savedUser = localStorage.getItem('@user');
@@ -11,12 +11,29 @@ const localStorageSync: AtomEffect<User | null> = ({ onSet, setSelf }) => {
   });
 };
 
-const user = atom<User | null>({
+const userAtom = atom<User | null>({
   key: 'user',
   default: null,
   effects: [localStorageSync],
 });
 
 export function useUser() {
-  return useRecoilState(user);
+  return useRecoilState(userAtom);
+}
+
+export function useUserGetter() {
+  return useRecoilValue(userAtom);
+}
+
+const isLoggedInSelector = selector({
+  key: 'isLoggedIn',
+  get: ({ get }) => {
+    const user = get(userAtom);
+    return !!user;
+  },
+});
+
+export function useIsUserLoggedIn() {
+  const isUserLoggedIn = useRecoilValue(isLoggedInSelector);
+  return { isUserLoggedIn };
 }
