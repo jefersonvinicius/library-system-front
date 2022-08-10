@@ -6,7 +6,6 @@ export const api = axios.create({
 
 function tokenInterceptor(token: string) {
   return (config: AxiosRequestConfig) => {
-    console.log('HERER');
     if (config.headers) config.headers['Authorization'] = `Bearer ${token}`;
     return config;
   };
@@ -14,11 +13,9 @@ function tokenInterceptor(token: string) {
 
 export function subscribeTokenInterceptor(token: string) {
   const id = api.interceptors.request.use(tokenInterceptor(token));
-  console.log('Subscribed token interceptor with id ' + id);
   return id;
 }
 
 export function unsubscribeTokenInterceptor(id: number) {
-  console.log('Unsubscribe token interceptor ' + id);
   api.interceptors.request.eject(id);
 }
