@@ -1,24 +1,26 @@
+import { yupResolver } from '@hookform/resolvers/yup';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'app/image';
+import toast from 'components/Toast';
 import { AuthorsService } from 'modules/authors/services';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { useEffect, useMemo, useState } from 'react';
+import { useDrop } from 'react-dnd';
 import Dropzone from 'react-dropzone';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
-import { DeleteButtonBox, ImagePreview, ImagePreviewBox, ImagesContainer, UploadingBox } from './styles';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import toast from 'components/Toast';
 import { createFileUploadable, FileUploadable } from 'shared/files';
+import * as yup from 'yup';
+import ImageUploader from './ImageUploader';
+import { ImagesContainer } from './styles';
 
 type Props = {
   authorsService: AuthorsService;
 };
 
-type ConfigurableImage = FileUploadable | Image;
+export type ConfigurableImage = FileUploadable | Image;
 
 type FetcherAuthorParams = {
   authorsService: AuthorsService;
@@ -110,11 +112,7 @@ export default function AuthorPage({ authorsService }: Props) {
     if (authorId) uploadImageFile(fileUploadable);
   }
 
-  async function handleDeleteImage(
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>,
-    imageToDelete: ConfigurableImage
-  ) {
-    event.stopPropagation();
+  async function handleDeleteImage(imageToDelete: ConfigurableImage) {
     if (Image.isImage(imageToDelete)) {
       setImagesDeletingStatuses((old) => Object.assign(old, { [imageToDelete.id]: true }));
       try {
@@ -164,34 +162,27 @@ export default function AuthorPage({ authorsService }: Props) {
               <>
                 <input {...getInputProps()} />
                 <ImagesContainer {...getRootProps()}>
-                  {images?.map((image) => (
-                    <ImagePreviewBox key={image.id}>
-                      {(imagesUploadingStatues[image.id]?.uploading || imagesUploadingStatues[image.id]?.error) && (
-                        <UploadingBox>
-                          {imagesUploadingStatues[image.id]?.uploading ? (
-                            <i className="pi pi-spin pi-spinner" style={{ fontSize: '2em' }} />
-                          ) : (
-                            <div className="flex flex-column">
-                              <span className="mb-2 text-sm text-0 font-bold">Something wrong!</span>
-                              <Button label="Try Again" onClick={() => uploadImageFile(image as FileUploadable)} />
-                            </div>
-                          )}
-                        </UploadingBox>
-                      )}
-                      <DeleteButtonBox>
-                        <Button
-                          type="button"
-                          onClick={(event) => handleDeleteImage(event, image)}
-                          icon="pi pi-times"
-                          className="p-button-rounded p-button-danger"
-                          tooltip="Deletar"
-                          disabled={imagesDeletingStatuses[image.id] || imagesUploadingStatues[image.id]?.uploading}
-                          loading={imagesDeletingStatuses[image.id]}
-                          tooltipOptions={{ position: 'top' }}
-                        />
-                      </DeleteButtonBox>
-                      {Image.isImage(image) ? <ImagePreview src={image.url} /> : <ImagePreview src={image.localUrl} />}
-                    </ImagePreviewBox>
+                  {images?.map((image, index) => (
+                    <ImageUploader
+                      key={image.id}
+                      image={image}
+                      isDeleting={!!imagesDeletingStatuses[image.id]}
+                      isUploading={!!imagesUploadingStatues[image.id]?.uploading}
+                      error={!!imagesUploadingStatues[image.id]?.error}
+                      onDeleteClick={handleDeleteImage}
+                      onTryAgainClick={uploadImageFile}
+                      index={index}
+                      onMoveImage={({ initialIndex, finalIndex }) => {
+                        console.log({ initialIndex, finalIndex });
+                        setImages((old) => {
+                          const copy = [...(old ?? [])];
+                          const initialHold = copy[initialIndex];
+                          copy[initialIndex] = copy[finalIndex];
+                          copy[finalIndex] = initialHold;
+                          return copy;
+                        });
+                      }}
+                    />
                   ))}
                 </ImagesContainer>
               </>
