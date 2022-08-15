@@ -1,10 +1,15 @@
 import { Image } from 'app/image';
 import { Button } from 'primereact/button';
-import React, { useRef } from 'react';
-import { useDrag, useDrop, XYCoord } from 'react-dnd';
+import React, { useMemo } from 'react';
+import { DraggableProvided, DraggableStateSnapshot } from 'react-beautiful-dnd';
 import { FileUploadable } from 'shared/files';
 import { ConfigurableImage } from '..';
 import { DeleteButtonBox, ImagePreview, ImagePreviewBox, UploadingBox } from './styles';
+
+type DraggableInfo = {
+  provided: DraggableProvided;
+  snapshot: DraggableStateSnapshot;
+};
 
 type Props = {
   image: ConfigurableImage;
@@ -13,8 +18,7 @@ type Props = {
   error?: any;
   onDeleteClick: (image: ConfigurableImage) => void;
   onTryAgainClick: (image: FileUploadable) => void;
-  index: number;
-  onMoveImage: (params: { initialIndex: number; finalIndex: number }) => void;
+  draggableInfo: DraggableInfo;
 };
 
 export default function ImageUploader({
@@ -24,61 +28,25 @@ export default function ImageUploader({
   error,
   onDeleteClick,
   onTryAgainClick,
-  index,
-  onMoveImage,
+  draggableInfo,
 }: Props) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  const [{ handlerId }, drop] = useDrop(() => ({
-    accept: 'image',
-    collect: (monitor) => ({
-      handlerId: monitor.getHandlerId(),
-    }),
-    hover(item: any, monitor) {
-      if (!ref.current) return;
-
-      const dragIndex = item.index;
-      const hoverIndex = index;
-
-      if (dragIndex === hoverIndex) return;
-
-      const hoverBoundingRect = ref.current.getBoundingClientRect();
-
-      const hoverMiddleX = (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
-      const clientOffset = monitor.getClientOffset() as XYCoord;
-      const hoverClientX = clientOffset.x - hoverBoundingRect.left;
-
-      console.log({ dragIndex, hoverIndex });
-      console.log({ hoverClientX, hoverMiddleX, clientOffset });
-
-      if (dragIndex < hoverIndex && hoverClientX < hoverMiddleX) return;
-
-      if (dragIndex > hoverIndex && hoverClientX > hoverMiddleX) return;
-
-      onMoveImage({ initialIndex: dragIndex, finalIndex: hoverIndex });
-      item.index = hoverIndex;
-    },
-    drop: (item: any, monitor) => {
-      console.log('-____-');
-      console.log('DROP: ', { item, result: monitor.getDropResult() });
-    },
-  }));
-
   function handleDeleteClick(event: React.MouseEvent<HTMLButtonElement, MouseEvent>) {
     event.stopPropagation();
     onDeleteClick(image);
   }
+  const { provided } = draggableInfo;
 
-  const [{ isDragging }, drag] = useDrag(() => ({
-    type: 'image',
-    item: () => ({ id: image.id, index }),
-    collect: (monitor) => ({ isDragging: !!monitor.isDragging() }),
-  }));
-
-  drag(drop(ref));
+  const style = useMemo(() => {
+    return { ...provided.draggableProps.style };
+  }, [provided.draggableProps.style]);
 
   return (
-    <ImagePreviewBox ref={ref} style={{ opacity: isDragging ? 0.5 : 1 }} data-handler-id={handlerId}>
+    <ImagePreviewBox
+      ref={draggableInfo.provided.innerRef}
+      {...provided.draggableProps}
+      {...provided.dragHandleProps}
+      style={style}
+    >
       {(isUploading || error) && (
         <UploadingBox>
           {isUploading ? (

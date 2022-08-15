@@ -7,7 +7,6 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { useEffect, useMemo, useState } from 'react';
-import { useDrop } from 'react-dnd';
 import Dropzone from 'react-dropzone';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
@@ -15,6 +14,7 @@ import { createFileUploadable, FileUploadable } from 'shared/files';
 import * as yup from 'yup';
 import ImageUploader from './ImageUploader';
 import { ImagesContainer } from './styles';
+import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
 
 type Props = {
   authorsService: AuthorsService;
@@ -52,6 +52,23 @@ type UploadingStatus = {
   uploading: boolean;
   error?: any;
 };
+
+type SwapProps = {
+  from: number;
+  to: number;
+};
+
+function swap<T>({ from, to }: SwapProps) {
+  return (array: T[] | null) => {
+    if (!array) return array;
+
+    const copy = Array.from(array);
+    const hold = copy[to];
+    copy[to] = copy[from];
+    copy[from] = hold;
+    return copy;
+  };
+}
 
 export default function AuthorPage({ authorsService }: Props) {
   const params = useParams();
@@ -128,6 +145,13 @@ export default function AuthorPage({ authorsService }: Props) {
     setImages((old) => old?.filter((image) => image.id !== imageToDelete.id) ?? null);
   }
 
+  function handleDragImageEnd(result: DropResult) {
+    console.log(result);
+    if (!result.destination) return;
+
+    setImages(swap({ from: result.source.index, to: result.destination.index }));
+  }
+
   const isSomethingProcessing = useMemo(() => {
     return (
       Object.values(imagesDeletingStatuses).some((isDeleting) => isDeleting === true) ||
@@ -160,31 +184,34 @@ export default function AuthorPage({ authorsService }: Props) {
           <Dropzone onDrop={handleOnDropFile} maxFiles={1} disabled={isSomethingProcessing}>
             {({ getRootProps, getInputProps }) => (
               <>
-                <input {...getInputProps()} />
-                <ImagesContainer {...getRootProps()}>
-                  {images?.map((image, index) => (
-                    <ImageUploader
-                      key={image.id}
-                      image={image}
-                      isDeleting={!!imagesDeletingStatuses[image.id]}
-                      isUploading={!!imagesUploadingStatues[image.id]?.uploading}
-                      error={!!imagesUploadingStatues[image.id]?.error}
-                      onDeleteClick={handleDeleteImage}
-                      onTryAgainClick={uploadImageFile}
-                      index={index}
-                      onMoveImage={({ initialIndex, finalIndex }) => {
-                        console.log({ initialIndex, finalIndex });
-                        setImages((old) => {
-                          const copy = [...(old ?? [])];
-                          const initialHold = copy[initialIndex];
-                          copy[initialIndex] = copy[finalIndex];
-                          copy[finalIndex] = initialHold;
-                          return copy;
-                        });
-                      }}
-                    />
-                  ))}
-                </ImagesContainer>
+                <DragDropContext onDragEnd={handleDragImageEnd}>
+                  <Droppable droppableId="droppable" direction="horizontal">
+                    {(provided, snapshot) => (
+                      <>
+                        <input {...getInputProps({ disabled: snapshot.isDraggingOver })} />
+                        <ImagesContainer {...getRootProps()} ref={provided.innerRef} {...provided.droppableProps}>
+                          {images?.map((image, index) => (
+                            <Draggable key={String(image.id)} draggableId={String(image.id)} index={index}>
+                              {(draggableProvided, draggableSnapshot) => (
+                                <ImageUploader
+                                  image={image}
+                                  isDeleting={!!imagesDeletingStatuses[image.id]}
+                                  isUploading={!!imagesUploadingStatues[image.id]?.uploading}
+                                  error={!!imagesUploadingStatues[image.id]?.error}
+                                  onDeleteClick={handleDeleteImage}
+                                  onTryAgainClick={uploadImageFile}
+                                  draggableInfo={{ provided: draggableProvided, snapshot: draggableSnapshot }}
+                                />
+                              )}
+                            </Draggable>
+                          ))}
+
+                          {provided.placeholder}
+                        </ImagesContainer>
+                      </>
+                    )}
+                  </Droppable>
+                </DragDropContext>
               </>
             )}
           </Dropzone>

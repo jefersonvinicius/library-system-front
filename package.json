@@ -18,8 +18,7 @@
     "primeicons": "^5.0.0",
     "primereact": "^8.3.0",
     "react": "^18.2.0",
-    "react-dnd": "^16.0.1",
-    "react-dnd-html5-backend": "^16.0.1",
+    "react-beautiful-dnd": "^13.1.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.2.2",
     "react-hook-form": "^7.34.0",
@@ -59,6 +58,7 @@
     ]
   },
   "devDependencies": {
+    "@types/react-beautiful-dnd": "^13.1.2",
     "@types/react-transition-group": "^4.4.5",
     "@types/uuid": "^8.3.4"
   }

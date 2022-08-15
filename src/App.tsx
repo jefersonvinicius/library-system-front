@@ -10,8 +10,6 @@ import 'primereact/resources/themes/saga-blue/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
 import 'primeflex/primeflex.css';
-import { DndProvider } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
 
 const queryClient = new QueryClient();
 
@@ -22,9 +20,7 @@ export default function App() {
       <Observables />
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <DndProvider backend={HTML5Backend}>
-            <AppRoutes />
-          </DndProvider>
+          <AppRoutes />
         </BrowserRouter>
       </QueryClientProvider>
     </RecoilRoot>
