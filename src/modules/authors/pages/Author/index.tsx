@@ -15,6 +15,7 @@ import * as yup from 'yup';
 import ImageUploader from './ImageUploader';
 import { ImagesContainer } from './styles';
 import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
+import { waitFor } from 'shared/timer';
 
 type Props = {
   authorsService: AuthorsService;
@@ -58,14 +59,16 @@ type SwapProps = {
   to: number;
 };
 
-function swap<T>({ from, to }: SwapProps) {
+type MoveProps = SwapProps;
+
+function move<T>({ from, to }: MoveProps) {
   return (array: T[] | null) => {
     if (!array) return array;
 
     const copy = Array.from(array);
-    const hold = copy[to];
-    copy[to] = copy[from];
-    copy[from] = hold;
+    const hold = array[from];
+    copy.splice(from, 1);
+    copy.splice(to, 0, hold);
     return copy;
   };
 }
@@ -87,6 +90,7 @@ export default function AuthorPage({ authorsService }: Props) {
   const [imagesUploadingStatues, setImagesUploadingStatuses] = useState<{ [key: string]: UploadingStatus | undefined }>(
     {}
   );
+  const [isChangingPosition, setIsChangingPosition] = useState(false);
 
   const authorId = params.id ? Number(params.id) : null;
 
@@ -145,19 +149,36 @@ export default function AuthorPage({ authorsService }: Props) {
     setImages((old) => old?.filter((image) => image.id !== imageToDelete.id) ?? null);
   }
 
-  function handleDragImageEnd(result: DropResult) {
+  async function handleDragImageEnd(result: DropResult) {
     console.log(result);
-    if (!result.destination) return;
+    if (!result.destination || result.destination.index === result.source.index) return;
 
-    setImages(swap({ from: result.source.index, to: result.destination.index }));
+    const image = images?.[result.source.index];
+
+    setImages(move({ from: result.source.index, to: result.destination.index }));
+    setIsChangingPosition(true);
+    try {
+      await waitFor(2);
+      await authorsService.changeImagePosition({
+        authorId: authorId!,
+        imageId: Number(image?.id),
+        position: result.destination.index,
+      });
+    } catch (error) {
+      toast().error('Ocorreu um erro ao atualizar a posição!');
+      setImages(move({ from: result.destination.index, to: result.source.index }));
+    } finally {
+      setIsChangingPosition(false);
+    }
   }
 
   const isSomethingProcessing = useMemo(() => {
     return (
       Object.values(imagesDeletingStatuses).some((isDeleting) => isDeleting === true) ||
-      Object.values(imagesUploadingStatues).some((status) => Boolean(status?.uploading || status?.error))
+      Object.values(imagesUploadingStatues).some((status) => Boolean(status?.uploading || status?.error)) ||
+      isChangingPosition
     );
-  }, [imagesDeletingStatuses, imagesUploadingStatues]);
+  }, [imagesDeletingStatuses, imagesUploadingStatues, isChangingPosition]);
 
   return (
     <div className="">
@@ -176,45 +197,52 @@ export default function AuthorPage({ authorsService }: Props) {
         <label htmlFor="birthDate">Birth Date</label>
         <InputText type="date" id="birthDate" {...register('birthDate')} />
 
-        <div className="flex flex-column">
+        <div className="flex flex-column" style={{ opacity: isSomethingProcessing ? 0.8 : 1 }}>
           <div className="flex flex-row justify-content-between">
             <span>Images</span>
-            <Button type="button" icon="pi pi-plus" />
+            <Button type="button" icon="pi pi-plus" loading={isSomethingProcessing} disabled={isSomethingProcessing} />
           </div>
-          <Dropzone onDrop={handleOnDropFile} maxFiles={1} disabled={isSomethingProcessing}>
-            {({ getRootProps, getInputProps }) => (
-              <>
-                <DragDropContext onDragEnd={handleDragImageEnd}>
-                  <Droppable droppableId="droppable" direction="horizontal">
-                    {(provided, snapshot) => (
-                      <>
-                        <input {...getInputProps({ disabled: snapshot.isDraggingOver })} />
-                        <ImagesContainer {...getRootProps()} ref={provided.innerRef} {...provided.droppableProps}>
-                          {images?.map((image, index) => (
-                            <Draggable key={String(image.id)} draggableId={String(image.id)} index={index}>
-                              {(draggableProvided, draggableSnapshot) => (
-                                <ImageUploader
-                                  image={image}
-                                  isDeleting={!!imagesDeletingStatuses[image.id]}
-                                  isUploading={!!imagesUploadingStatues[image.id]?.uploading}
-                                  error={!!imagesUploadingStatues[image.id]?.error}
-                                  onDeleteClick={handleDeleteImage}
-                                  onTryAgainClick={uploadImageFile}
-                                  draggableInfo={{ provided: draggableProvided, snapshot: draggableSnapshot }}
-                                />
-                              )}
-                            </Draggable>
-                          ))}
+          <>
+            <DragDropContext onDragEnd={handleDragImageEnd}>
+              <Droppable droppableId="droppable" direction="horizontal" isDropDisabled={isSomethingProcessing}>
+                {(provided, snapshot) => (
+                  <Dropzone
+                    onDrop={handleOnDropFile}
+                    maxFiles={1}
+                    disabled={isSomethingProcessing || snapshot.isDraggingOver}
+                  >
+                    {({ getRootProps, getInputProps }) => (
+                      <ImagesContainer {...getRootProps()} ref={provided.innerRef} {...provided.droppableProps}>
+                        <input {...getInputProps()} />
+                        {images?.map((image, index) => (
+                          <Draggable
+                            key={String(image.id)}
+                            draggableId={String(image.id)}
+                            index={index}
+                            isDragDisabled={isSomethingProcessing}
+                          >
+                            {(draggableProvided, draggableSnapshot) => (
+                              <ImageUploader
+                                image={image}
+                                isDeleting={!!imagesDeletingStatuses[image.id]}
+                                isUploading={!!imagesUploadingStatues[image.id]?.uploading}
+                                error={!!imagesUploadingStatues[image.id]?.error}
+                                onDeleteClick={handleDeleteImage}
+                                onTryAgainClick={uploadImageFile}
+                                draggableInfo={{ provided: draggableProvided, snapshot: draggableSnapshot }}
+                              />
+                            )}
+                          </Draggable>
+                        ))}
 
-                          {provided.placeholder}
-                        </ImagesContainer>
-                      </>
+                        {provided.placeholder}
+                      </ImagesContainer>
                     )}
-                  </Droppable>
-                </DragDropContext>
-              </>
-            )}
-          </Dropzone>
+                  </Dropzone>
+                )}
+              </Droppable>
+            </DragDropContext>
+          </>
         </div>
 
         <Button label="Save" />

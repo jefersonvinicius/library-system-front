@@ -13,12 +13,18 @@ type AttachImageParams = {
   file: FileUploadable;
 };
 
+type ChangeImagePositionParams = {
+  authorId: number;
+  imageId: number;
+  position: number;
+};
+
 export interface AuthorsService {
   fetch(): Promise<Pagination & { authors: Author[] }>;
   fetchById(id: number): Promise<Author>;
-
   detachImage(params: DetachImageParams): Promise<void>;
   attachImage(params: AttachImageParams): Promise<Author>;
+  changeImagePosition(params: ChangeImagePositionParams): Promise<void>;
 }
 
 export class APIAuthorsService implements AuthorsService {
@@ -42,6 +48,10 @@ export class APIAuthorsService implements AuthorsService {
     formData.append('image', file.original);
     const { data } = await api.post(`/api/v1/authors/${authorId}/images`, formData);
     return Author.fromApi(data.author);
+  }
+
+  async changeImagePosition({ authorId, imageId, position }: ChangeImagePositionParams): Promise<void> {
+    await api.put(`/api/v1/authors/${authorId}/images/${imageId}/sort/${position}`);
   }
 }
 
