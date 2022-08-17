@@ -6,7 +6,7 @@ export const ImagesContainer = styled.div`
   flex-direction: row;
   border: 3px gray dashed;
   height: ${IMAGE_UPLOADER_HEIGHT}px;
-  overflow-x: scroll;
+  overflow-x: auto;
 
   &::-webkit-scrollbar {
     height: 5px;

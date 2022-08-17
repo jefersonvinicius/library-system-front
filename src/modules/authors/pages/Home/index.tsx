@@ -1,10 +1,12 @@
 import { Author } from 'app/author';
+import ImageContained from 'components/ImageContained';
 import SafeImg from 'components/SafeImg';
 import { AuthorsService } from 'modules/authors/services';
 import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { PLACEHOLDERS } from 'shared/placeholders';
 
 type Props = {
   authorsService: AuthorsService;
@@ -22,10 +24,13 @@ export default function AuthorsHomePage({ authorsService }: Props) {
   return (
     <div className="grid">
       {authors.map((author) => (
-        <div key={author.id} className="col-3">
+        <div key={author.id} className="col-2">
           <Card
+            style={{ width: 300 }}
             title={author.name}
-            header={<SafeImg alt="Card" src={author.images[0]?.url} />}
+            header={
+              <ImageContained alt="Card" src={author.images[0]?.url ?? PLACEHOLDERS.DEFAULT} style={{ height: 200 }} />
+            }
             footer={
               <span>
                 <Link to={`/authors/${author.id}`}>

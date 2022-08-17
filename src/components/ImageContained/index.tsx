@@ -14,7 +14,7 @@ export default function ImageContained(props: ImageContainedProps) {
         style={{
           ...props.style,
           objectFit: 'contain',
-          backdropFilter: `blur(${props.blur ?? 5}px)`,
+          backdropFilter: `blur(${props.blur ?? 10}px)`,
         }}
       />
     </Container>
@@ -22,8 +22,9 @@ export default function ImageContained(props: ImageContainedProps) {
 }
 
 const Container = styled.div<{ url: string | undefined }>`
-  position: relative;
+  display: flex;
   height: 100%;
+  background-color: rgba(0, 0, 0, 0.2);
   background-image: url(${(props) => props.url});
   background-repeat: no-repeat;
   background-size: cover;
