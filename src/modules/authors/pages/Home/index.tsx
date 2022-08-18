@@ -1,6 +1,5 @@
 import { Author } from 'app/author';
 import ImageContained from 'components/ImageContained';
-import SafeImg from 'components/SafeImg';
 import { AuthorsService } from 'modules/authors/services';
 import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';

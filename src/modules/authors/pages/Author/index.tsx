@@ -2,23 +2,26 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'app/image';
 import toast from 'components/Toast';
+import { format } from 'date-fns';
 import { AuthorsService } from 'modules/authors/services';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { useEffect, useMemo, useState } from 'react';
+import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
 import Dropzone from 'react-dropzone';
 import { useForm } from 'react-hook-form';
-import { useParams } from 'react-router-dom';
 import { createFileUploadable, FileUploadable } from 'shared/files';
+import { NavigationControl } from 'shared/navigation';
+import { waitFor } from 'shared/timer';
 import * as yup from 'yup';
 import ImageUploader from './ImageUploader';
 import { ImagesContainer } from './styles';
-import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
-import { waitFor } from 'shared/timer';
 
 type Props = {
   authorsService: AuthorsService;
+  navigationControl: NavigationControl;
+  authorId: number | null;
 };
 
 export type ConfigurableImage = FileUploadable | Image;
@@ -40,7 +43,7 @@ function useFetchAuthor({ authorsService, authorId }: FetcherAuthorParams) {
 type AuthorForm = {
   name: string;
   bio: string;
-  birthDate: Date;
+  birthDate: string;
 };
 
 const authorFormSchema = yup.object({
@@ -73,9 +76,11 @@ function move<T>({ from, to }: MoveProps) {
   };
 }
 
-export default function AuthorPage({ authorsService }: Props) {
-  const params = useParams();
+function dateToInputValue(date: Date) {
+  return format(date, 'yyyy-MM-dd');
+}
 
+export function AuthorPage({ authorsService, navigationControl, authorId }: Props) {
   const {
     register,
     formState: { errors },
@@ -91,8 +96,7 @@ export default function AuthorPage({ authorsService }: Props) {
     {}
   );
   const [isChangingPosition, setIsChangingPosition] = useState(false);
-
-  const authorId = params.id ? Number(params.id) : null;
+  const [isSaving, setIsSaving] = useState(false);
 
   const { data } = useFetchAuthor({ authorsService, authorId });
 
@@ -102,13 +106,28 @@ export default function AuthorPage({ authorsService }: Props) {
       reset({
         name: data.name,
         bio: data.bio,
-        birthDate: data.birthDate,
+        birthDate: dateToInputValue(data.birthDate),
       });
     }
   }, [data, reset]);
 
-  function handleSubmitSuccess(values: any) {
+  async function handleSubmitSuccess(values: AuthorForm) {
     console.log({ values });
+    const formData = new FormData();
+    formData.append('title', values.name);
+    formData.append('birth_date', values.birthDate);
+    formData.append('bio', values.bio);
+
+    try {
+      setIsSaving(true);
+      await authorsService.update(authorId!, formData);
+      toast().success('Salvo com sucesso!');
+      navigationControl.goBack();
+    } catch (error) {
+      toast().error(`Erro ao salvar`);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   async function uploadImageFile(fileUploadable: FileUploadable) {
@@ -176,15 +195,20 @@ export default function AuthorPage({ authorsService }: Props) {
     return (
       Object.values(imagesDeletingStatuses).some((isDeleting) => isDeleting === true) ||
       Object.values(imagesUploadingStatues).some((status) => Boolean(status?.uploading || status?.error)) ||
-      isChangingPosition
+      isChangingPosition ||
+      isSaving
     );
-  }, [imagesDeletingStatuses, imagesUploadingStatues, isChangingPosition]);
+  }, [imagesDeletingStatuses, imagesUploadingStatues, isChangingPosition, isSaving]);
 
   return (
     <div className="">
+      <div>
+        <Button icon="pi pi-arrow-left" disabled={isSomethingProcessing} onClick={() => navigationControl.goBack()} />
+        <h1>{authorId ? 'Editando autor' : 'Criando autor'}</h1>
+      </div>
       <form className="flex flex-column" onSubmit={handleSubmit(handleSubmitSuccess)}>
         <label htmlFor="name">Name</label>
-        <InputText id="name" {...register('name')} className={errors.name && 'p-invalid'} />
+        <InputText id="name" {...register('name')} className={errors.name && 'p-invalid'} disabled={isSaving} />
         {errors.name && (
           <small id="name-help" className="invalid p-d-block">
             {errors.name.message}
@@ -192,13 +216,26 @@ export default function AuthorPage({ authorsService }: Props) {
         )}
 
         <label htmlFor="bio">Biography</label>
-        <InputTextarea id="bio" {...register('bio')} />
+        <InputTextarea id="bio" {...register('bio')} disabled={isSaving} />
+        {errors.bio && (
+          <small id="name-help" className="invalid p-d-block">
+            {errors.bio.message}
+          </small>
+        )}
 
         <label htmlFor="birthDate">Birth Date</label>
         <InputText type="date" id="birthDate" {...register('birthDate')} />
+        {errors.birthDate && (
+          <small id="name-help" className="invalid p-d-block">
+            {errors.birthDate.message}
+          </small>
+        )}
 
+        <div className="flex flex-row justify-content-end">
+          <Button className="my-2" label="Save" loading={isSaving} disabled={isSaving} />
+        </div>
         <div className="flex flex-column" style={{ opacity: isSomethingProcessing ? 0.8 : 1 }}>
-          <div className="flex flex-row justify-content-between">
+          <div className="flex flex-row justify-content-between align-items-center">
             <span>Images</span>
             <Button type="button" icon="pi pi-plus" loading={isSomethingProcessing} disabled={isSomethingProcessing} />
           </div>
@@ -244,8 +281,6 @@ export default function AuthorPage({ authorsService }: Props) {
             </DragDropContext>
           </>
         </div>
-
-        <Button label="Save" />
       </form>
     </div>
   );

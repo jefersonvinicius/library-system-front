@@ -25,6 +25,7 @@ export interface AuthorsService {
   detachImage(params: DetachImageParams): Promise<void>;
   attachImage(params: AttachImageParams): Promise<Author>;
   changeImagePosition(params: ChangeImagePositionParams): Promise<void>;
+  update(authorId: number, formData: FormData): Promise<void>;
 }
 
 export class APIAuthorsService implements AuthorsService {
@@ -52,6 +53,10 @@ export class APIAuthorsService implements AuthorsService {
 
   async changeImagePosition({ authorId, imageId, position }: ChangeImagePositionParams): Promise<void> {
     await api.put(`/api/v1/authors/${authorId}/images/${imageId}/sort/${position}`);
+  }
+
+  async update(authorId: number, formData: FormData): Promise<void> {
+    await api.put(`/api/v1/authors/${authorId}`, formData);
   }
 }
 

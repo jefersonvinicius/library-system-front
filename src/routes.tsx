@@ -5,7 +5,7 @@ import HomePage from 'pages/Home';
 import RequireAuth from 'components/RequireAuth';
 import AuthorsHomePage from 'modules/authors/pages/Home';
 import { authorsService } from 'modules/authors/services';
-import AuthorPage from 'modules/authors/pages/Author';
+import WrappedAuthorPage from 'main/pages/AuthorPage';
 
 export default function AppRoutes() {
   return (
@@ -18,10 +18,7 @@ export default function AppRoutes() {
           path="/authors"
           element={<RequireAuth component={<AuthorsHomePage authorsService={authorsService} />} />}
         />
-        <Route
-          path="/authors/:id"
-          element={<RequireAuth component={<AuthorPage authorsService={authorsService} />} />}
-        />
+        <Route path="/authors/:id" element={<RequireAuth component={<WrappedAuthorPage />} />} />
       </Routes>
     </>
   );
