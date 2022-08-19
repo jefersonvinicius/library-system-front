@@ -14,3 +14,9 @@ export function move<T>({ from, to }: MoveProps) {
     return copy;
   };
 }
+
+export function spread<T>(partial: Partial<T>) {
+  return (state: T) => {
+    return state ? { ...state, ...partial } : state;
+  };
+}

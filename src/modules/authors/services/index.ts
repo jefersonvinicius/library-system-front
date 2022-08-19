@@ -26,6 +26,7 @@ type FetchParams = {
 export interface AuthorsService {
   fetch(params: FetchParams): Promise<Pagination & { authors: Author[] }>;
   fetchById(id: number): Promise<Author>;
+  delete(authorId: number): Promise<void>;
   detachImage(params: DetachImageParams): Promise<void>;
   attachImage(params: AttachImageParams): Promise<Author>;
   changeImagePosition(params: ChangeImagePositionParams): Promise<void>;
@@ -75,6 +76,10 @@ export class APIAuthorsService implements AuthorsService {
 
   async create(formData: FormData): Promise<void> {
     await api.post('/api/v1/authors', formData);
+  }
+
+  async delete(authorId: number): Promise<void> {
+    await api.delete(`/api/v1/authors/${authorId}`);
   }
 }
 

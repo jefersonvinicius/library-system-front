@@ -14,7 +14,7 @@ import { useForm } from 'react-hook-form';
 import { createFileUploadable, FileUploadable, isFileUploadable } from 'shared/files';
 import { NavigationControl } from 'shared/navigation';
 import { move } from 'shared/state';
-import { waitFor } from 'shared/timer';
+import { waitFor } from 'shared/async';
 import * as yup from 'yup';
 import ImageUploader from './ImageUploader';
 import { ImagesContainer } from './styles';
@@ -99,7 +99,7 @@ export function AuthorPage({ authorsService, navigationControl, authorId }: Prop
     console.log({ values });
 
     const formData = new FormData();
-    formData.append('title', values.name);
+    formData.append('name', values.name);
     formData.append('birth_date', values.birthDate);
     formData.append('bio', values.bio);
 
