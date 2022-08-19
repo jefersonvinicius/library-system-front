@@ -2,8 +2,11 @@ import { APIAuth } from './auth';
 
 export const authService = new APIAuth();
 
-type PaginationMeta = {
-  total: number;
+export type PaginationMeta = {
+  lastPage: boolean;
+  totalPages: number;
+  totalRecords: number;
+  page: number;
 };
 
 export type Pagination = {

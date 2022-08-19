@@ -9,17 +9,16 @@ import WrappedAuthorPage from 'main/pages/AuthorPage';
 
 export default function AppRoutes() {
   return (
-    <>
-      <Routes>
-        <Route path="/" element={<LoginPage authService={authService} />} />
-        <Route path="/login" element={<LoginPage authService={authService} />} />
-        <Route path="/home" element={<RequireAuth component={<HomePage />} />} />
-        <Route
-          path="/authors"
-          element={<RequireAuth component={<AuthorsHomePage authorsService={authorsService} />} />}
-        />
-        <Route path="/authors/:id" element={<RequireAuth component={<WrappedAuthorPage />} />} />
-      </Routes>
-    </>
+    <Routes>
+      <Route path="/" element={<LoginPage authService={authService} />} />
+      <Route path="/login" element={<LoginPage authService={authService} />} />
+      <Route path="/home" element={<RequireAuth component={<HomePage />} />} />
+      <Route
+        path="/authors"
+        element={<RequireAuth component={<AuthorsHomePage authorsService={authorsService} />} />}
+      />
+      <Route path="/author/:id" element={<RequireAuth component={<WrappedAuthorPage />} />} />
+      <Route path="/author" element={<RequireAuth component={<WrappedAuthorPage />} />} />
+    </Routes>
   );
 }

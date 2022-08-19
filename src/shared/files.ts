@@ -11,3 +11,7 @@ export function createFileUploadable(file: File): FileUploadable {
   const url = URL.createObjectURL(file);
   return { ...file, id: uuidV4(), localUrl: url, revoke: () => URL.revokeObjectURL(url), original: file };
 }
+
+export function isFileUploadable(file: any): file is FileUploadable {
+  return file && file.localUrl && file.original instanceof File;
+}

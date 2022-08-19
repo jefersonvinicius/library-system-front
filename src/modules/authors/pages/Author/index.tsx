@@ -11,8 +11,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
 import Dropzone from 'react-dropzone';
 import { useForm } from 'react-hook-form';
-import { createFileUploadable, FileUploadable } from 'shared/files';
+import { createFileUploadable, FileUploadable, isFileUploadable } from 'shared/files';
 import { NavigationControl } from 'shared/navigation';
+import { move } from 'shared/state';
 import { waitFor } from 'shared/timer';
 import * as yup from 'yup';
 import ImageUploader from './ImageUploader';
@@ -57,25 +58,6 @@ type UploadingStatus = {
   error?: any;
 };
 
-type SwapProps = {
-  from: number;
-  to: number;
-};
-
-type MoveProps = SwapProps;
-
-function move<T>({ from, to }: MoveProps) {
-  return (array: T[] | null) => {
-    if (!array) return array;
-
-    const copy = Array.from(array);
-    const hold = array[from];
-    copy.splice(from, 1);
-    copy.splice(to, 0, hold);
-    return copy;
-  };
-}
-
 function dateToInputValue(date: Date) {
   return format(date, 'yyyy-MM-dd');
 }
@@ -89,6 +71,8 @@ export function AuthorPage({ authorsService, navigationControl, authorId }: Prop
   } = useForm<AuthorForm>({
     resolver: yupResolver(authorFormSchema),
   });
+
+  const isNew = !authorId;
 
   const [images, setImages] = useState<ConfigurableImage[] | null>(null);
   const [imagesDeletingStatuses, setImagesDeletingStatuses] = useState<{ [key: string]: boolean | undefined }>({});
@@ -113,14 +97,22 @@ export function AuthorPage({ authorsService, navigationControl, authorId }: Prop
 
   async function handleSubmitSuccess(values: AuthorForm) {
     console.log({ values });
+
     const formData = new FormData();
     formData.append('title', values.name);
     formData.append('birth_date', values.birthDate);
     formData.append('bio', values.bio);
 
+    if (isNew) {
+      images?.forEach((image) => {
+        if (isFileUploadable(image)) formData.append('images', image.original);
+      });
+    }
+
     try {
       setIsSaving(true);
-      await authorsService.update(authorId!, formData);
+      if (isNew) await authorsService.create(formData);
+      else await authorsService.update(authorId, formData);
       toast().success('Salvo com sucesso!');
       navigationControl.goBack();
     } catch (error) {
@@ -172,12 +164,13 @@ export function AuthorPage({ authorsService, navigationControl, authorId }: Prop
     console.log(result);
     if (!result.destination || result.destination.index === result.source.index) return;
 
-    const image = images?.[result.source.index];
-
     setImages(move({ from: result.source.index, to: result.destination.index }));
+    if (isNew) return;
+
     setIsChangingPosition(true);
     try {
       await waitFor(2);
+      const image = images?.[result.source.index];
       await authorsService.changeImagePosition({
         authorId: authorId!,
         imageId: Number(image?.id),
