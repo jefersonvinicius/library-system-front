@@ -37,7 +37,7 @@ function useFetchAuthor({ authorsService, authorId }: FetcherAuthorParams) {
     enabled: !!authorId,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    staleTime: 0,
+    cacheTime: 0,
   });
 }
 

@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { Author } from 'app/author';
+import Grid from 'components/Grid';
 import ImageContained from 'components/ImageContained';
 import toast from 'components/Toast';
 import { AuthorsService } from 'modules/authors/services';
@@ -112,46 +113,40 @@ export default function AuthorsHomePage({ authorsService }: Props) {
       <div>
         <div>Total: {meta?.totalRecords}</div>
       </div>
-      <div className="grid">
+      <Grid>
         {authors?.map((author) => (
-          <div key={author.id} className="col-2">
-            <Card
-              style={{ width: 300 }}
-              title={author.name}
-              header={
-                <ImageContained
-                  alt="Card"
-                  src={author.images[0]?.url ?? PLACEHOLDERS.DEFAULT}
-                  style={{ height: 200 }}
-                />
-              }
-              footer={
-                <span>
-                  <Link to={`/author/${author.id}`}>
-                    <Button
-                      icon="pi pi-pencil"
-                      style={{ marginRight: '.25em' }}
-                      tooltip="Edit"
-                      tooltipOptions={{ position: 'top' }}
-                    />
-                  </Link>
+          <Card
+            key={author.id}
+            title={author.name}
+            header={
+              <ImageContained alt="Card" src={author.images[0]?.url ?? PLACEHOLDERS.DEFAULT} style={{ height: 200 }} />
+            }
+            footer={
+              <span>
+                <Link to={`/author/${author.id}`}>
                   <Button
-                    icon="pi pi-trash"
-                    className="p-button-danger"
-                    tooltip="Delete"
-                    onClick={() => handleDeleteClick(author)}
+                    icon="pi pi-pencil"
+                    style={{ marginRight: '.25em' }}
+                    tooltip="Edit"
                     tooltipOptions={{ position: 'top' }}
-                    loading={isDeletingAuthorsStatuses[author.id]}
-                    disabled={isDeletingAuthorsStatuses[author.id]}
                   />
-                </span>
-              }
-            >
-              {author.bio}
-            </Card>
-          </div>
+                </Link>
+                <Button
+                  icon="pi pi-trash"
+                  className="p-button-danger"
+                  tooltip="Delete"
+                  onClick={() => handleDeleteClick(author)}
+                  tooltipOptions={{ position: 'top' }}
+                  loading={isDeletingAuthorsStatuses[author.id]}
+                  disabled={isDeletingAuthorsStatuses[author.id]}
+                />
+              </span>
+            }
+          >
+            {author.bio}
+          </Card>
         ))}
-      </div>
+      </Grid>
       <div ref={ref} />
       {isFetchingNextPage ? (
         <span>Loading...</span>
