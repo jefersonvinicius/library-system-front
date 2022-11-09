@@ -10,11 +10,14 @@ const Container = styled.div`
 type Props = {
   children: ReactNode;
   minChildrenWidth?: number;
+  maxChildrenWidth?: number;
 };
 
-export default function Grid({ children, minChildrenWidth = 300 }: Props) {
+export default function Grid({ children, minChildrenWidth = 300, maxChildrenWidth = 350 }: Props) {
   return (
-    <Container style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${minChildrenWidth}px, 1fr))` }}>
+    <Container
+      style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${minChildrenWidth}px, ${maxChildrenWidth}px))` }}
+    >
       {children}
     </Container>
   );

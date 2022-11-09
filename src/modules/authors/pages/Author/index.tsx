@@ -8,24 +8,24 @@ import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { useEffect, useMemo, useState } from 'react';
-import { DragDropContext, Draggable, Droppable, DropResult } from 'react-beautiful-dnd';
-import Dropzone from 'react-dropzone';
 import { useForm } from 'react-hook-form';
 import { createFileUploadable, FileUploadable, isFileUploadable } from 'shared/files';
 import { NavigationControl } from 'shared/navigation';
 import { move } from 'shared/state';
 import { waitFor } from 'shared/async';
 import * as yup from 'yup';
-import ImageUploader from './ImageUploader';
-import { ImagesContainer } from './styles';
+import ImagesUploaderHandler, {
+  ConfigurableImage,
+  MoveImageParams,
+  UploadingStatus,
+} from 'components/ImagesUploaderHandler';
+import { useImagesUploderHandler } from 'components/ImagesUploaderHandler/hooks';
 
 type Props = {
   authorsService: AuthorsService;
   navigationControl: NavigationControl;
   authorId: number | null;
 };
-
-export type ConfigurableImage = FileUploadable | Image;
 
 type FetcherAuthorParams = {
   authorsService: AuthorsService;
@@ -53,11 +53,6 @@ const authorFormSchema = yup.object({
   birthDate: yup.date().max(new Date(), 'Birth date should be before of current date'),
 });
 
-type UploadingStatus = {
-  uploading: boolean;
-  error?: any;
-};
-
 function dateToInputValue(date: Date) {
   return format(date, 'yyyy-MM-dd');
 }
@@ -74,12 +69,14 @@ export function AuthorPage({ authorsService, navigationControl, authorId }: Prop
 
   const isNew = !authorId;
 
-  const [images, setImages] = useState<ConfigurableImage[] | null>(null);
-  const [imagesDeletingStatuses, setImagesDeletingStatuses] = useState<{ [key: string]: boolean | undefined }>({});
-  const [imagesUploadingStatues, setImagesUploadingStatuses] = useState<{ [key: string]: UploadingStatus | undefined }>(
-    {}
-  );
-  const [isChangingPosition, setIsChangingPosition] = useState(false);
+  const {} = useImagesUploderHandler({
+    isUploadable: !!authorId,
+    deleteFileToServerFn: (imageId) => authorsService.detachImage({ authorId: authorId!, imageId }),
+    moveImageFn: ({ imageId, destinationIndex }) =>
+      authorsService.changeImagePosition({ authorId: authorId!, imageId, position: destinationIndex }),
+    uploadFileToServerFn: (file) => authorsService.attachImage({ authorId: authorId!, file }),
+  });
+
   const [isSaving, setIsSaving] = useState(false);
 
   const { data } = useFetchAuthor({ authorsService, authorId });
@@ -122,77 +119,6 @@ export function AuthorPage({ authorsService, navigationControl, authorId }: Prop
     }
   }
 
-  async function uploadImageFile(fileUploadable: FileUploadable) {
-    setImagesUploadingStatuses((old) => ({ ...old, [fileUploadable.id]: { uploading: true, error: null } }));
-    try {
-      const authorUpdated = await authorsService.attachImage({ authorId: authorId!, file: fileUploadable });
-      setImages(authorUpdated.images);
-      setImagesUploadingStatuses((old) => ({ ...old, [fileUploadable.id]: { uploading: false, error: null } }));
-    } catch (error) {
-      console.log({ error });
-      setImagesUploadingStatuses((old) => ({ ...old, [fileUploadable.id]: { uploading: false, error: error } }));
-    }
-  }
-
-  useEffect(() => {
-    console.log({ imagesUploadingStatues });
-  }, [imagesUploadingStatues]);
-
-  async function handleOnDropFile([file]: File[]) {
-    const fileUploadable = createFileUploadable(file);
-    setImages((old) => [...(old ?? []), fileUploadable]);
-    if (authorId) uploadImageFile(fileUploadable);
-  }
-
-  async function handleDeleteImage(imageToDelete: ConfigurableImage) {
-    if (Image.isImage(imageToDelete)) {
-      setImagesDeletingStatuses((old) => Object.assign(old, { [imageToDelete.id]: true }));
-      try {
-        await authorsService.detachImage({ authorId: authorId!, imageId: imageToDelete.id });
-      } catch (error: any) {
-        toast().error(error?.message ?? 'Unknown error');
-      }
-      setImagesDeletingStatuses((old) => Object.assign(old, { [imageToDelete.id]: false }));
-    } else {
-      imageToDelete.revoke();
-    }
-
-    setImages((old) => old?.filter((image) => image.id !== imageToDelete.id) ?? null);
-  }
-
-  async function handleDragImageEnd(result: DropResult) {
-    console.log(result);
-    if (!result.destination || result.destination.index === result.source.index) return;
-
-    setImages(move({ from: result.source.index, to: result.destination.index }));
-    if (isNew) return;
-
-    setIsChangingPosition(true);
-    try {
-      await waitFor(2);
-      const image = images?.[result.source.index];
-      await authorsService.changeImagePosition({
-        authorId: authorId!,
-        imageId: Number(image?.id),
-        position: result.destination.index,
-      });
-    } catch (error) {
-      toast().error('Ocorreu um erro ao atualizar a posição!');
-      setImages(move({ from: result.destination.index, to: result.source.index }));
-    } finally {
-      setIsChangingPosition(false);
-    }
-  }
-
-  const isSomethingProcessing = useMemo(() => {
-    return (
-      Object.values(imagesDeletingStatuses).some((isDeleting) => isDeleting === true) ||
-      Object.values(imagesUploadingStatues).some((status) => Boolean(status?.uploading || status?.error)) ||
-      isChangingPosition ||
-      isSaving
-    );
-  }, [imagesDeletingStatuses, imagesUploadingStatues, isChangingPosition, isSaving]);
-
   return (
     <div className="">
       <div>
@@ -233,45 +159,16 @@ export function AuthorPage({ authorsService, navigationControl, authorId }: Prop
             <Button type="button" icon="pi pi-plus" loading={isSomethingProcessing} disabled={isSomethingProcessing} />
           </div>
           <>
-            <DragDropContext onDragEnd={handleDragImageEnd}>
-              <Droppable droppableId="droppable" direction="horizontal" isDropDisabled={isSomethingProcessing}>
-                {(provided, snapshot) => (
-                  <Dropzone
-                    onDrop={handleOnDropFile}
-                    maxFiles={1}
-                    disabled={isSomethingProcessing || snapshot.isDraggingOver}
-                  >
-                    {({ getRootProps, getInputProps }) => (
-                      <ImagesContainer {...getRootProps()} ref={provided.innerRef} {...provided.droppableProps}>
-                        <input {...getInputProps()} />
-                        {images?.map((image, index) => (
-                          <Draggable
-                            key={String(image.id)}
-                            draggableId={String(image.id)}
-                            index={index}
-                            isDragDisabled={isSomethingProcessing}
-                          >
-                            {(draggableProvided, draggableSnapshot) => (
-                              <ImageUploader
-                                image={image}
-                                isDeleting={!!imagesDeletingStatuses[image.id]}
-                                isUploading={!!imagesUploadingStatues[image.id]?.uploading}
-                                error={!!imagesUploadingStatues[image.id]?.error}
-                                onDeleteClick={handleDeleteImage}
-                                onTryAgainClick={uploadImageFile}
-                                draggableInfo={{ provided: draggableProvided, snapshot: draggableSnapshot }}
-                              />
-                            )}
-                          </Draggable>
-                        ))}
-
-                        {provided.placeholder}
-                      </ImagesContainer>
-                    )}
-                  </Dropzone>
-                )}
-              </Droppable>
-            </DragDropContext>
+            <ImagesUploaderHandler
+              images={images}
+              onMoveImage={handleMoveImage}
+              onDropFile={handleOnDropFile}
+              isSomethingProcessing={isSomethingProcessing}
+              onImageDeleteClick={handleDeleteImage}
+              onImageTryAgainClick={uploadImageFile}
+              deletingStatuses={imagesDeletingStatuses}
+              uploadingStatuses={imagesUploadingStatues}
+            />
           </>
         </div>
       </form>
